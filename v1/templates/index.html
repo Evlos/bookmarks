@@ -4,21 +4,14 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>书签收藏夹</title>
-  <!-- Tailwind CDN (v3 play) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: { DEFAULT: '#6366f1', dark: '#818cf8' }
-          }
-        }
-      }
+      theme: { extend: { colors: { brand: { DEFAULT: '#6366f1', dark: '#818cf8' } } } }
     }
   </script>
-  <!-- Apply saved theme BEFORE first paint to avoid flash -->
+  <!-- Apply saved theme before first paint -->
   <script>
     (function(){
       const t = localStorage.getItem('theme');
@@ -28,12 +21,10 @@
     })();
   </script>
   <style>
-    /* slim scrollbar */
     ::-webkit-scrollbar{width:6px;height:6px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:#a5b4fc;border-radius:9999px}
     .dark ::-webkit-scrollbar-thumb{background:#4f46e5}
-    /* tag pill */
     .tag-pill{
       display:inline-flex;align-items:center;gap:4px;
       padding:2px 10px;border-radius:9999px;font-size:.75rem;font-weight:500;
@@ -43,7 +34,6 @@
     .dark .tag-pill{background:#312e81;color:#c7d2fe}
     .tag-pill:hover,.tag-pill.active{background:#6366f1;color:#fff}
     .dark .tag-pill:hover,.dark .tag-pill.active{background:#818cf8;color:#1e1b4b}
-    /* fade-in */
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
     .fade-in{animation:fadeIn .2s ease both}
   </style>
@@ -51,35 +41,12 @@
 
 <body class="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200">
 
-<!-- ── Top bar ─────────────────────────────────────────────────────────────── -->
+<!-- ── Top bar (logo + theme toggle only) ──────────────────────────────────── -->
 <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm">
-  <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center gap-3">
-    <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">📌 书签</span>
-
-    <!-- Add form -->
-    <div class="flex-1 flex items-center gap-2" id="addForm">
-      <input id="urlInput" type="url" placeholder="粘贴 URL，失去焦点自动获取信息，回车添加…"
-        class="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600
-               bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
-               placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
-      <input id="titleInput" type="text" placeholder="标题"
-        class="w-40 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600
-               bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
-      <input id="tagsInput" type="text" placeholder="标签（逗号分隔）"
-        class="w-44 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600
-               bg-white dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
-      <button id="addBtn" onclick="addBookmark()"
-        class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition shrink-0">
-        ＋ 添加
-      </button>
-    </div>
-
-    <!-- Fetch indicator -->
-    <span id="fetchIndicator" class="text-xs text-slate-400 dark:text-slate-500 hidden whitespace-nowrap">⏳ 获取中…</span>
-
-    <!-- Theme toggle -->
+  <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+    <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">📌 书签收藏夹</span>
     <button id="themeBtn" onclick="toggleTheme()"
-      class="ml-2 p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition shrink-0"
+      class="p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
       title="切换主题">
       <span id="iconSun" class="hidden">
         <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,23 +66,79 @@
 <!-- ── Main layout ──────────────────────────────────────────────────────────── -->
 <div class="max-w-screen-xl mx-auto px-4 py-5 flex gap-5">
 
-  <!-- Sidebar: Tags -->
-  <aside class="w-44 shrink-0">
-    <div class="sticky top-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-      <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">标签</h2>
-      <div id="tagList" class="flex flex-col gap-1.5">
-        <span class="tag-pill active" data-tag="" onclick="filterByTag(this, '')">🏷 全部</span>
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <aside class="w-48 shrink-0">
+    <div class="sticky top-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+
+      <!-- Search -->
+      <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+        <div class="relative">
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" stroke-width="2"/>
+            <path stroke-width="2" d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input id="searchInput" type="text" placeholder="搜索书签…"
+            class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600
+                   bg-slate-50 dark:bg-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400
+                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="p-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">标签</h2>
+        <div id="tagList" class="flex flex-col gap-1.5">
+          <span class="tag-pill active" data-tag="" onclick="filterByTag(this,'')">🏷 全部</span>
+        </div>
       </div>
     </div>
   </aside>
 
-  <!-- Bookmark list -->
-  <main class="flex-1 min-w-0">
+  <!-- ── Right main area ─────────────────────────────────────────────────── -->
+  <main class="flex-1 min-w-0 flex flex-col gap-4">
+
+    <!-- Add form card (top of list) -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+      <h2 class="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">➕ 添加书签</h2>
+      <div class="flex flex-col gap-2">
+        <!-- Row 1: URL -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500 dark:text-slate-400 w-8 shrink-0">URL</label>
+          <input id="urlInput" type="url" placeholder="粘贴 URL（失去焦点自动获取标题和图标）"
+            class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600
+                   bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
+                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
+          <span id="fetchIndicator" class="text-xs text-indigo-400 hidden whitespace-nowrap">⏳ 获取中…</span>
+        </div>
+        <!-- Row 2: Title + Tags + Submit -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500 dark:text-slate-400 w-8 shrink-0">标题</label>
+          <input id="titleInput" type="text" placeholder="标题（自动填充）"
+            class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600
+                   bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
+                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
+          <label class="text-xs text-slate-500 dark:text-slate-400 shrink-0">标签</label>
+          <input id="tagsInput" type="text" placeholder="tag1, tag2, …（回车添加）"
+            class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600
+                   bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
+                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
+          <button onclick="addBookmark()"
+            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition shrink-0">
+            ＋ 添加
+          </button>
+        </div>
+      </div>
+      <div id="addError" class="hidden mt-2 text-xs text-red-500 dark:text-red-400"></div>
+    </div>
+
+    <!-- Bookmark list -->
     <div id="bookmarkList" class="flex flex-col gap-3"></div>
     <div id="emptyState" class="hidden text-center py-20 text-slate-400 dark:text-slate-600">
       <div class="text-5xl mb-3">🔖</div>
-      <p class="text-sm">还没有书签，快去添加吧！</p>
+      <p class="text-sm">没有找到书签</p>
     </div>
+
   </main>
 </div>
 
@@ -138,9 +161,10 @@
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────────
 let activeTag = '';
+let searchQuery = '';
 let fetchedMeta = {};
+let searchTimer = null;
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
 function updateThemeIcons() {
@@ -148,16 +172,23 @@ function updateThemeIcons() {
   document.getElementById('iconSun').classList.toggle('hidden', !dark);
   document.getElementById('iconMoon').classList.toggle('hidden', dark);
 }
-
 function toggleTheme() {
   const isDark = document.documentElement.classList.toggle('dark');
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
   updateThemeIcons();
 }
-
 updateThemeIcons();
 
-// ── Fetch meta on blur ─────────────────────────────────────────────────────────
+// ── Search (debounce 300ms) ────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchQuery = this.value.trim();
+    loadBookmarks();
+  }, 300);
+});
+
+// ── Fetch meta on URL blur ─────────────────────────────────────────────────────
 document.getElementById('urlInput').addEventListener('blur', async function() {
   const url = this.value.trim();
   if (!url) return;
@@ -173,14 +204,10 @@ document.getElementById('urlInput').addEventListener('blur', async function() {
   document.getElementById('fetchIndicator').classList.add('hidden');
 });
 
-document.getElementById('urlInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') addBookmark();
-});
-document.getElementById('titleInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') addBookmark();
-});
-document.getElementById('tagsInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') addBookmark();
+['urlInput','titleInput','tagsInput'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') addBookmark();
+  });
 });
 
 // ── Add bookmark ───────────────────────────────────────────────────────────────
@@ -188,12 +215,14 @@ async function addBookmark() {
   const url   = document.getElementById('urlInput').value.trim();
   const title = document.getElementById('titleInput').value.trim();
   const tags  = document.getElementById('tagsInput').value.split(',').map(t=>t.trim()).filter(Boolean);
-  if (!url) { alert('请输入 URL'); return; }
+  const errEl = document.getElementById('addError');
+  errEl.classList.add('hidden');
+  if (!url) { showAddError('请输入 URL'); return; }
   const icon = fetchedMeta.icon || '';
   const res = await fetch('/api/bookmarks', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ url, title: title||url, icon, tags })
+    body: JSON.stringify({ url, title: title || url, icon, tags })
   });
   if (res.ok) {
     document.getElementById('urlInput').value = '';
@@ -201,7 +230,16 @@ async function addBookmark() {
     document.getElementById('tagsInput').value = '';
     fetchedMeta = {};
     await loadAll();
+  } else {
+    const data = await res.json();
+    showAddError(data.message || '添加失败');
   }
+}
+
+function showAddError(msg) {
+  const el = document.getElementById('addError');
+  el.textContent = '⚠️ ' + msg;
+  el.classList.remove('hidden');
 }
 
 // ── Load & render ──────────────────────────────────────────────────────────────
@@ -210,8 +248,11 @@ async function loadAll() {
 }
 
 async function loadBookmarks() {
-  const url = '/api/bookmarks' + (activeTag ? '?tag=' + encodeURIComponent(activeTag) : '');
-  const res = await fetch(url);
+  const params = new URLSearchParams();
+  if (activeTag)    params.set('tag', activeTag);
+  if (searchQuery)  params.set('q', searchQuery);
+  const qs = params.toString();
+  const res = await fetch('/api/bookmarks' + (qs ? '?' + qs : ''));
   const items = await res.json();
   renderBookmarks(items);
 }
@@ -220,7 +261,6 @@ async function loadTags() {
   const res = await fetch('/api/tags');
   const tags = await res.json();
   const list = document.getElementById('tagList');
-  // keep "全部" pill
   list.innerHTML = '<span class="tag-pill' + (activeTag===''?' active':'') + '" data-tag="" onclick="filterByTag(this,\'\')">🏷 全部</span>';
   tags.forEach(t => {
     const el = document.createElement('span');
@@ -233,7 +273,7 @@ async function loadTags() {
 }
 
 function renderBookmarks(items) {
-  const list = document.getElementById('bookmarkList');
+  const list  = document.getElementById('bookmarkList');
   const empty = document.getElementById('emptyState');
   list.innerHTML = '';
   if (!items.length) { empty.classList.remove('hidden'); return; }
@@ -241,30 +281,31 @@ function renderBookmarks(items) {
   items.forEach(b => {
     const tags = b.tags ? b.tags.split(',').filter(Boolean) : [];
     const tagHtml = tags.map(t =>
-      `<span class="tag-pill text-xs py-0.5 px-2" onclick="filterByTag(null,'${t}')">${t}</span>`
+      `<span class="tag-pill text-xs py-0.5 px-2" onclick="filterByTag(null,'${escHtml(t)}')">${escHtml(t)}</span>`
     ).join('');
     const iconSrc = b.icon ? `/api/proxy-icon?url=${encodeURIComponent(b.icon)}` : '';
     const iconHtml = iconSrc
       ? `<img src="${iconSrc}" class="w-5 h-5 rounded shrink-0 object-contain" onerror="this.replaceWith(defaultIcon())" />`
       : defaultIcon().outerHTML;
+
     const card = document.createElement('div');
     card.className = 'fade-in bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow';
     card.innerHTML = `
       ${iconHtml}
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
-          <a href="${b.url}" target="_blank" rel="noopener"
+          <a href="${escHtml(b.url)}" target="_blank" rel="noopener"
              class="font-medium text-slate-800 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 truncate text-sm">
             ${escHtml(b.title)}
           </a>
         </div>
         <div class="flex items-center gap-2 mt-0.5">
-          <a href="${b.url}" target="_blank" rel="noopener"
-             class="text-xs text-slate-400 dark:text-slate-500 truncate max-w-xs hover:underline" title="${b.url}">
+          <a href="${escHtml(b.url)}" target="_blank" rel="noopener"
+             class="text-xs text-slate-400 dark:text-slate-500 truncate max-w-sm hover:underline" title="${escHtml(b.url)}">
             ${escHtml(b.url)}
           </a>
-          <span class="text-slate-300 dark:text-slate-600 text-xs">·</span>
-          <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">${b.created_at.slice(0,10)}</span>
+          <span class="text-slate-300 dark:text-slate-600 text-xs shrink-0">·</span>
+          <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">${b.created_at.slice(0,10)}</span>
         </div>
         <div class="flex flex-wrap gap-1 mt-1">${tagHtml}</div>
       </div>
@@ -290,16 +331,16 @@ function defaultIcon() {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Tags filter ────────────────────────────────────────────────────────────────
+// ── Tag filter ─────────────────────────────────────────────────────────────────
 function filterByTag(el, tag) {
   activeTag = tag;
   document.querySelectorAll('.tag-pill').forEach(p => p.classList.remove('active'));
-  if (el) el.classList.add('active');
-  else {
-    // find matching pill in sidebar
+  if (el) {
+    el.classList.add('active');
+  } else {
     document.querySelectorAll('#tagList .tag-pill').forEach(p => {
       if (p.dataset.tag === tag) p.classList.add('active');
     });
@@ -316,23 +357,20 @@ async function deleteBookmark(id) {
 
 // ── Edit modal ─────────────────────────────────────────────────────────────────
 function openEdit(b) {
-  document.getElementById('editId').value = b.id;
+  document.getElementById('editId').value    = b.id;
   document.getElementById('editTitle').value = b.title || '';
-  document.getElementById('editIcon').value = b.icon || '';
-  document.getElementById('editTags').value = b.tags || '';
+  document.getElementById('editIcon').value  = b.icon  || '';
+  document.getElementById('editTags').value  = b.tags  || '';
   document.getElementById('editModal').classList.remove('hidden');
   document.getElementById('editModal').classList.add('flex');
 }
-
 function closeModal() {
   document.getElementById('editModal').classList.add('hidden');
   document.getElementById('editModal').classList.remove('flex');
 }
-
 document.getElementById('editModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
-
 async function saveEdit() {
   const id    = document.getElementById('editId').value;
   const title = document.getElementById('editTitle').value.trim();

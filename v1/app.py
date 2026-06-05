@@ -1,21 +1,17 @@
-import json
 import os
-import re
 import sqlite3
 from datetime import datetime
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, Response, g, jsonify, render_template, request
 
 app = Flask(__name__)
 DATA_FOLDER = os.environ.get("DATA_FOLDER", "./data")
 os.makedirs(DATA_FOLDER, exist_ok=True)
 DB_PATH = os.path.join(DATA_FOLDER, "bookmarks.db")
 
-# ── optional socks5 proxy ──────────────────────────────────────────────────────
-# Set SOCKS5_PROXY env var like: socks5://user:pass@127.0.0.1:1080
 PROXY = os.environ.get("SOCKS5_PROXY", "")
 
 
@@ -35,47 +31,39 @@ def close_db(e=None):
 
 def init_db():
     db = sqlite3.connect(DB_PATH)
-    db.execute(
-        """CREATE TABLE IF NOT EXISTS bookmarks (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            url       TEXT    NOT NULL,
-            title     TEXT,
-            icon      TEXT,
-            tags      TEXT    DEFAULT '',
-            created_at TEXT   NOT NULL
-        )"""
-    )
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            url        TEXT    NOT NULL UNIQUE,
+            title      TEXT,
+            icon       TEXT,
+            tags       TEXT    DEFAULT '',
+            created_at TEXT    NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_title      ON bookmarks(title);
+        CREATE INDEX IF NOT EXISTS idx_tags       ON bookmarks(tags);
+        CREATE INDEX IF NOT EXISTS idx_created_at ON bookmarks(created_at);
+    """)
     db.commit()
     db.close()
 
 
-# ── helpers ────────────────────────────────────────────────────────────────────
-
 def fetch_meta(url: str):
-    """Fetch page title and favicon url via server-side request (supports socks5)."""
-    proxies = {}
-    if PROXY:
-        proxies = {"http": PROXY, "https": PROXY}
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (compatible; BookmarkBot/1.0)"
-        )
-    }
+    proxies = {"http": PROXY, "https": PROXY} if PROXY else None
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; BookmarkBot/1.0)"}
     try:
-        resp = requests.get(url, headers=headers, proxies=proxies or None,
+        resp = requests.get(url, headers=headers, proxies=proxies,
                             timeout=10, allow_redirects=True)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # title
         title = ""
-        og_title = soup.find("meta", property="og:title")
-        if og_title and og_title.get("content"):
-            title = og_title["content"].strip()
+        og = soup.find("meta", property="og:title")
+        if og and og.get("content"):
+            title = og["content"].strip()
         elif soup.title and soup.title.string:
             title = soup.title.string.strip()
 
-        # favicon – try link tags first, then /favicon.ico
         icon_url = ""
         for rel in ("shortcut icon", "icon", "apple-touch-icon"):
             tag = soup.find("link", rel=lambda r: r and rel in r)
@@ -85,7 +73,7 @@ def fetch_meta(url: str):
 
         parsed = urlparse(url)
         base = f"{parsed.scheme}://{parsed.netloc}"
-        if icon_url and icon_url.startswith("//"):
+        if icon_url.startswith("//"):
             icon_url = parsed.scheme + ":" + icon_url
         elif icon_url and not icon_url.startswith("http"):
             icon_url = base + "/" + icon_url.lstrip("/")
@@ -96,8 +84,6 @@ def fetch_meta(url: str):
     except Exception as e:
         return {"title": url, "icon": "", "error": str(e)}
 
-
-# ── routes ─────────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -115,43 +101,56 @@ def api_fetch_meta():
 @app.route("/api/bookmarks", methods=["GET"])
 def list_bookmarks():
     tag = request.args.get("tag", "").strip()
-    db = get_db()
+    q   = request.args.get("q", "").strip()
+    db  = get_db()
+
+    conditions = []
+    params = []
+
     if tag:
-        rows = db.execute(
-            "SELECT * FROM bookmarks WHERE ','||tags||',' LIKE ? ORDER BY id DESC",
-            (f"%,{tag},%",)
-        ).fetchall()
-    else:
-        rows = db.execute("SELECT * FROM bookmarks ORDER BY id DESC").fetchall()
+        conditions.append("','||tags||',' LIKE ?")
+        params.append(f"%,{tag},%")
+    if q:
+        conditions.append("(title LIKE ? OR url LIKE ? OR tags LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like, like, like])
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    rows = db.execute(
+        f"SELECT * FROM bookmarks {where} ORDER BY id DESC", params
+    ).fetchall()
     return jsonify([dict(r) for r in rows])
 
 
 @app.route("/api/bookmarks", methods=["POST"])
 def add_bookmark():
     data = request.json or {}
-    url = data.get("url", "").strip()
+    url  = data.get("url", "").strip()
     title = data.get("title", "").strip() or url
-    icon = data.get("icon", "").strip()
-    tags = ",".join(t.strip() for t in data.get("tags", []) if t.strip())
+    icon  = data.get("icon", "").strip()
+    tags  = ",".join(t.strip() for t in data.get("tags", []) if t.strip())
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if not url:
         return jsonify({"error": "url required"}), 400
     db = get_db()
-    cur = db.execute(
-        "INSERT INTO bookmarks (url, title, icon, tags, created_at) VALUES (?,?,?,?,?)",
-        (url, title, icon, tags, created_at),
-    )
-    db.commit()
+    try:
+        cur = db.execute(
+            "INSERT INTO bookmarks (url, title, icon, tags, created_at) VALUES (?,?,?,?,?)",
+            (url, title, icon, tags, created_at),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "duplicate", "message": "该 URL 已存在"}), 409
     row = db.execute("SELECT * FROM bookmarks WHERE id=?", (cur.lastrowid,)).fetchone()
     return jsonify(dict(row)), 201
 
 
 @app.route("/api/bookmarks/<int:bid>", methods=["PUT"])
 def update_bookmark(bid):
-    data = request.json or {}
+    data  = request.json or {}
     title = data.get("title", "").strip()
-    icon = data.get("icon", "").strip()
-    tags = ",".join(t.strip() for t in data.get("tags", []) if t.strip())
+    icon  = data.get("icon", "").strip()
+    tags  = ",".join(t.strip() for t in data.get("tags", []) if t.strip())
     db = get_db()
     db.execute(
         "UPDATE bookmarks SET title=?, icon=?, tags=? WHERE id=?",
@@ -187,17 +186,13 @@ def list_tags():
 
 @app.route("/api/proxy-icon")
 def proxy_icon():
-    """Proxy favicon images to avoid CORS issues."""
     icon_url = request.args.get("url", "").strip()
     if not icon_url:
         return "", 400
-    proxies = {}
-    if PROXY:
-        proxies = {"http": PROXY, "https": PROXY}
+    proxies = {"http": PROXY, "https": PROXY} if PROXY else None
     try:
-        resp = requests.get(icon_url, proxies=proxies or None, timeout=5)
+        resp = requests.get(icon_url, proxies=proxies, timeout=5)
         content_type = resp.headers.get("content-type", "image/x-icon")
-        from flask import Response
         return Response(resp.content, content_type=content_type)
     except Exception:
         return "", 404
