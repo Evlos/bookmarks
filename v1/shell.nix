@@ -5,6 +5,8 @@ in pkgs.mkShell {
     (pkgs.python3.withPackages (python-pkgs: [
       python-pkgs.flask
       python-pkgs.requests
+      python-pkgs.pysocks
+      python-pkgs.beautifulsoup4
     ]))
   ];
 }
