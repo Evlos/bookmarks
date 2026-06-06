@@ -8,9 +8,7 @@ from bs4 import BeautifulSoup
 from flask import Flask, Response, g, jsonify, render_template, request
 
 app = Flask(__name__)
-DATA_FOLDER = os.environ.get("DATA_FOLDER", "./data")
-os.makedirs(DATA_FOLDER, exist_ok=True)
-DB_PATH = os.path.join(DATA_FOLDER, "bookmarks.db")
+DB_PATH = os.environ.get("DB_PATH", "bookmarks.db")
 
 PROXY = os.environ.get("SOCKS5_PROXY", "")
 
