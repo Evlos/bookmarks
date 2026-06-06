@@ -1,4 +1,4 @@
-name: v1 - Build and Push Docker Image
+name: Build and Push Docker Image
 
 on:
   push:
@@ -56,7 +56,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./v1
+          context: .
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
