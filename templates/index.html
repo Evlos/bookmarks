@@ -158,6 +158,9 @@
       <p class="text-sm">No bookmarks found</p>
     </div>
 
+    <!-- Pagination controls -->
+    <div id="pagination" class="hidden mt-4 pb-8"></div>
+
   </main>
 </div>
 
@@ -182,6 +185,9 @@
 <script>
 let activeTag = '';
 let searchQuery = '';
+let allBookmarks = [];
+let currentPage = 1;
+const itemsPerPage = 8;
 let fetchedMeta = {};
 let searchTimer = null;
 
@@ -272,8 +278,9 @@ async function loadBookmarks() {
   if (searchQuery)  params.set('q', searchQuery);
   const qs = params.toString();
   const res = await fetch('/api/bookmarks' + (qs ? '?' + qs : ''));
-  const items = await res.json();
-  renderBookmarks(items);
+  allBookmarks = await res.json();
+  currentPage = 1;
+  renderBookmarks();
 }
 
 async function loadTags() {
@@ -291,8 +298,10 @@ async function loadTags() {
   });
 }
 
-function renderBookmarks(items) {
+function renderBookmarks() {
   const list  = document.getElementById('bookmarkList');
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const items = allBookmarks.slice(startIndex, startIndex + itemsPerPage);
   const empty = document.getElementById('emptyState');
   list.innerHTML = '';
   if (!items.length) { empty.classList.remove('hidden'); return; }
@@ -340,6 +349,7 @@ function renderBookmarks(items) {
       </div>`;
     list.appendChild(card);
   });
+  renderPagination();
 }
 
 function defaultIcon() {
@@ -447,6 +457,49 @@ async function saveEdit() {
 })();
 
 loadAll();
+
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+function renderPagination() {
+  const paginationContainer = document.getElementById('pagination');
+  if (!paginationContainer) return;
+
+  const totalPages = Math.ceil(allBookmarks.length / itemsPerPage);
+  if (totalPages <= 1) {
+    paginationContainer.classList.add('hidden');
+    paginationContainer.innerHTML = '';
+    return;
+  }
+  paginationContainer.classList.remove('hidden');
+
+  let html = `<div class="flex items-center gap-2 justify-center mt-6">`;
+
+  const prevDisabled = currentPage === 1;
+  html += `<button onclick="goToPage(${currentPage - 1})" class="px-3 py-1 text-sm rounded ${prevDisabled ? 'opacity-50 cursor-not-allowed text-slate-400 bg-slate-100 dark:bg-slate-800' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}" ${prevDisabled ? 'disabled' : ''}>上一页</button>`;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+        const isActive = i === currentPage;
+        html += `<button onclick="goToPage(${i})" class="px-3 py-1 text-sm rounded border ${isActive ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}">${i}</button>`;
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+        html += `<span class="text-slate-400 px-1">...</span>`;
+    }
+  }
+
+  const nextDisabled = currentPage === totalPages;
+  html += `<button onclick="goToPage(${currentPage + 1})" class="px-3 py-1 text-sm rounded ${nextDisabled ? 'opacity-50 cursor-not-allowed text-slate-400 bg-slate-100 dark:bg-slate-800' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}" ${nextDisabled ? 'disabled' : ''}>下一页</button>`;
+
+  html += `</div>`;
+  paginationContainer.innerHTML = html;
+}
+
+function goToPage(page) {
+  const totalPages = Math.ceil(allBookmarks.length / itemsPerPage);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  renderBookmarks();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 </script>
 </body>
 </html>
