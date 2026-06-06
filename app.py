@@ -35,7 +35,7 @@ def init_db():
             url        TEXT    NOT NULL UNIQUE,
             title      TEXT,
             icon       TEXT,
-            tags       TEXT    DEFAULT '',
+            tags       TEXT    DEFAULT \'\',
             created_at TEXT    NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_title      ON bookmarks(title);
@@ -98,15 +98,17 @@ def api_fetch_meta():
 
 @app.route("/api/bookmarks", methods=["GET"])
 def list_bookmarks():
-    tag = request.args.get("tag", "").strip()
-    q   = request.args.get("q", "").strip()
-    db  = get_db()
+    tag  = request.args.get("tag", "").strip()
+    q    = request.args.get("q", "").strip()
+    page = max(1, int(request.args.get("page", 1)))
+    per_page = max(1, min(100, int(request.args.get("per_page", 20))))
+    db   = get_db()
 
     conditions = []
     params = []
 
     if tag:
-        conditions.append("','||tags||',' LIKE ?")
+        conditions.append("\',\'||tags||\',\' LIKE ?")
         params.append(f"%,{tag},%")
     if q:
         conditions.append("(title LIKE ? OR url LIKE ? OR tags LIKE ?)")
@@ -114,10 +116,26 @@ def list_bookmarks():
         params.extend([like, like, like])
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    # 查总数
+    total = db.execute(
+        f"SELECT COUNT(*) FROM bookmarks {where}", params
+    ).fetchone()[0]
+
+    # 分页查询
+    offset = (page - 1) * per_page
     rows = db.execute(
-        f"SELECT * FROM bookmarks {where} ORDER BY id DESC", params
+        f"SELECT * FROM bookmarks {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+        params + [per_page, offset]
     ).fetchall()
-    return jsonify([dict(r) for r in rows])
+
+    return jsonify({
+        "items":      [dict(r) for r in rows],
+        "total":      total,
+        "page":       page,
+        "per_page":   per_page,
+        "total_pages": (total + per_page - 1) // per_page,
+    })
 
 
 @app.route("/api/bookmarks", methods=["POST"])
@@ -172,7 +190,7 @@ def delete_bookmark(bid):
 @app.route("/api/tags")
 def list_tags():
     db = get_db()
-    rows = db.execute("SELECT tags FROM bookmarks WHERE tags != ''").fetchall()
+    rows = db.execute("SELECT tags FROM bookmarks WHERE tags != \'\'").fetchall()
     tag_set = set()
     for r in rows:
         for t in r["tags"].split(","):
