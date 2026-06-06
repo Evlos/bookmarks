@@ -41,25 +41,44 @@
 
 <body class="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200">
 
-<!-- ── Top bar (logo + theme toggle only) ──────────────────────────────────── -->
+<!-- ── Top bar ──────────────────────────────────────────────────────────────── -->
 <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm">
   <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
     <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">📌 书签收藏夹</span>
-    <button id="themeBtn" onclick="toggleTheme()"
-      class="p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-      title="切换主题">
-      <span id="iconSun" class="hidden">
-        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="5" stroke-width="2"/>
-          <path stroke-width="2" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+    <div class="flex items-center gap-2">
+
+      <!-- Bookmarklet drag handle -->
+      <a id="bookmarkletBtn"
+        href="#"
+        draggable="true"
+        title="拖拽到书签栏 / 点击可在当前页测试"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-600
+               bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400
+               hover:bg-indigo-100 dark:hover:bg-indigo-800/50 transition select-none cursor-grab active:cursor-grabbing
+               text-sm font-medium">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
         </svg>
-      </span>
-      <span id="iconMoon">
-        <svg class="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>
-        </svg>
-      </span>
-    </button>
+        <span class="hidden sm:inline whitespace-nowrap">拖到书签栏</span>
+      </a>
+
+      <!-- Theme toggle -->
+      <button id="themeBtn" onclick="toggleTheme()"
+        class="p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+        title="切换主题">
+        <span id="iconSun" class="hidden">
+          <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5" stroke-width="2"/>
+            <path stroke-width="2" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </span>
+        <span id="iconMoon">
+          <svg class="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>
+          </svg>
+        </span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -386,6 +405,47 @@ async function saveEdit() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
+
+// Set bookmarklet href using pure frontend location.origin
+(function() {
+  const base = location.origin;
+  const code = `javascript:(function(){var t=encodeURIComponent(document.title),u=encodeURIComponent(location.href);window.open('${base}/?url='+u+'\x26title='+t,'_blank');})();`;
+  document.getElementById('bookmarkletBtn').setAttribute('href', code);
+})();
+
+// Prefill form from ?url= and ?title= query params (triggered by bookmarklet)
+(function() {
+  const params = new URLSearchParams(location.search);
+  const pUrl   = params.get('url');
+  const pTitle = params.get('title');
+  if (pUrl) {
+    document.getElementById('urlInput').value = pUrl;
+    // Scroll add-form into view and focus title field
+    document.getElementById('urlInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  if (pTitle) {
+    document.getElementById('titleInput').value = pTitle;
+  }
+  if (pUrl) {
+    // Trigger meta fetch in background to also get favicon
+    fetch('/api/fetch-meta?url=' + encodeURIComponent(pUrl))
+      .then(r => r.json())
+      .then(data => {
+        fetchedMeta = data;
+        // Only overwrite title if user hasn't typed anything yet
+        if (data.title && !document.getElementById('titleInput').value) {
+          document.getElementById('titleInput').value = data.title;
+        }
+        // Focus tags field for quick entry
+        document.getElementById('tagsInput').focus();
+      })
+      .catch(() => {});
+    // Clean up URL bar without reload
+    const cleanUrl = location.pathname;
+    history.replaceState(null, '', cleanUrl);
+  }
+})();
+
 loadAll();
 </script>
 </body>
