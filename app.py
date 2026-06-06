@@ -140,7 +140,7 @@ def add_bookmark():
         )
         db.commit()
     except sqlite3.IntegrityError:
-        return jsonify({"error": "duplicate", "message": "该 URL 已存在"}), 409
+        return jsonify({"error": "duplicate", "message": "This URL already exists"}), 409
     row = db.execute("SELECT * FROM bookmarks WHERE id=?", (cur.lastrowid,)).fetchone()
     return jsonify(dict(row)), 201
 
