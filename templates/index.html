@@ -1,80 +1,282 @@
 <!DOCTYPE html>
-<html lang="zh" class="">
+<html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bookmarks</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="A private, self-hosted index of saved bookmarks — tag, search and file away links." />
+  <title>Marks</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Colours resolve from CSS variables, so `dark` needs no per-class variants.
     tailwind.config = {
       darkMode: 'class',
-      theme: { extend: { colors: { brand: { DEFAULT: '#6366f1', dark: '#818cf8' } } } }
+      theme: {
+        extend: {
+          colors: {
+            bg:          'rgb(var(--bg) / <alpha-value>)',
+            surface:     'rgb(var(--surface) / <alpha-value>)',
+            line:        'rgb(var(--line) / <alpha-value>)',
+            'line-soft': 'rgb(var(--line-soft) / <alpha-value>)',
+            ink:         'rgb(var(--ink) / <alpha-value>)',
+            ink2:        'rgb(var(--ink2) / <alpha-value>)',
+            ink3:        'rgb(var(--ink3) / <alpha-value>)',
+            brand:       'rgb(var(--brand) / <alpha-value>)',
+            'brand-hover':'rgb(var(--brand-hover) / <alpha-value>)',
+            'brand-wash': 'rgb(var(--brand-wash) / <alpha-value>)',
+            danger:      'rgb(var(--danger) / <alpha-value>)',
+            'danger-wash':'rgb(var(--danger-wash) / <alpha-value>)',
+            wash:        'rgb(var(--wash) / <alpha-value>)',
+          },
+          fontFamily: {
+            display: ['"Instrument Serif"', 'Georgia', 'serif'],
+            sans:    ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono:    ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          fontSize:   { '2xs': ['.6875rem', '1rem'] },
+          maxWidth:   { shell: '76rem' },
+        }
+      }
     }
   </script>
+
   <!-- Apply saved theme before first paint -->
   <script>
-    (function(){
+    (function () {
       const t = localStorage.getItem('theme');
       if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
       }
     })();
   </script>
+
   <style>
-    ::-webkit-scrollbar{width:6px;height:6px}
-    ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:#a5b4fc;border-radius:9999px}
-    .dark ::-webkit-scrollbar-thumb{background:#4f46e5}
-    .tag-pill{
-      display:inline-flex;align-items:center;gap:4px;
-      padding:2px 10px;border-radius:9999px;font-size:.75rem;font-weight:500;
-      cursor:pointer;transition:all .15s;
-      background:#e0e7ff;color:#4338ca;
+    :root {
+      --bg: 244 245 248;  --surface: 255 255 255;
+      --line: 227 230 236; --line-soft: 239 241 245;
+      --ink: 17 20 28;     --ink2: 74 81 96;    --ink3: 105 113 128;
+      --brand: 79 70 229;  --brand-hover: 67 56 202; --brand-wash: 238 240 254;
+      --danger: 220 38 38; --danger-wash: 254 242 242; --wash: 247 248 251;
+      --on-brand: 255 255 255;
     }
-    .dark .tag-pill{background:#312e81;color:#c7d2fe}
-    .tag-pill:hover,.tag-pill.active{background:#6366f1;color:#fff}
-    .dark .tag-pill:hover,.dark .tag-pill.active{background:#818cf8;color:#1e1b4b}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-    .fade-in{animation:fadeIn .2s ease both}
+    .dark {
+      --bg: 13 15 22;      --surface: 19 22 31;
+      --line: 35 40 56;    --line-soft: 27 31 43;
+      --ink: 233 235 242;  --ink2: 168 176 194;  --ink3: 132 140 158;
+      --brand: 129 140 248; --brand-hover: 165 180 252; --brand-wash: 30 33 60;
+      --danger: 248 113 113; --danger-wash: 46 33 41; --wash: 23 27 38;
+      /* the dark-mode indigo is light, so button labels go dark to stay legible */
+      --on-brand: 11 13 20;
+    }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: rgb(var(--line)); border-radius: 99px;
+      border: 3px solid rgb(var(--bg));
+    }
+    ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink3)); }
+
+    :where(button, a, input):focus-visible {
+      outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 6px;
+    }
+
+    /* ── Fields ──────────────────────────────────────────────────────────── */
+    .field {
+      width: 100%; padding: .5rem .75rem; font-size: .8125rem;
+      background: rgb(var(--bg)); color: rgb(var(--ink));
+      border: 1px solid rgb(var(--line)); border-radius: .5rem; transition: .15s;
+    }
+    .field::placeholder { color: rgb(var(--ink3)); }
+    .field:hover { border-color: rgb(var(--ink3)); }
+    .field:focus {
+      outline: none; border-color: rgb(var(--brand));
+      box-shadow: 0 0 0 3px rgb(var(--brand-wash));
+    }
+    .field-bare { background: transparent; border-color: transparent; }
+    .field-bare:hover { border-color: rgb(var(--line)); }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+      padding: .5rem .875rem; font-size: .8125rem; font-weight: 500;
+      border-radius: .5rem; white-space: nowrap; transition: .15s;
+    }
+    .btn-primary { background: rgb(var(--brand)); color: rgb(var(--on-brand)); }
+    .btn-primary:hover { background: rgb(var(--brand-hover)); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-ghost { color: rgb(var(--ink2)); border: 1px solid rgb(var(--line)); }
+    .btn-ghost:hover { background: rgb(var(--wash)); color: rgb(var(--ink)); }
+    .pager-current { background: rgb(var(--brand)); border-color: rgb(var(--brand)); color: rgb(var(--on-brand)); }
+
+    .iconbtn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: .5rem;
+      color: rgb(var(--ink3)); transition: .15s;
+    }
+    .iconbtn:hover { background: rgb(var(--wash)); color: rgb(var(--ink)); }
+    .iconbtn.act-danger:hover { background: rgb(var(--danger-wash)); color: rgb(var(--danger)); }
+    .iconbtn.act-confirm { background: rgb(var(--danger)); color: #fff; }
+    .iconbtn.act-confirm:hover { background: rgb(var(--danger)); color: #fff; opacity: .88; }
+
+    /* ── Keycap ──────────────────────────────────────────────────────────── */
+    .keycap {
+      font-family: '"IBM Plex Mono"', monospace; font-size: .625rem; line-height: 1;
+      padding: .25rem .3125rem; border-radius: .25rem; color: rgb(var(--ink3));
+      background: rgb(var(--bg)); border: 1px solid rgb(var(--line));
+    }
+
+    /* ── Tag pill ────────────────────────────────────────────────────────── */
+    .pill {
+      display: inline-flex; align-items: center; padding: .125rem .4375rem;
+      font-size: .6875rem; font-weight: 500; line-height: 1.375;
+      border-radius: 9999px; white-space: nowrap; transition: .15s;
+      background: rgb(var(--brand-wash)); color: rgb(var(--brand));
+    }
+    .pill:hover { background: rgb(var(--brand)); color: #fff; }
+
+    /* ── Rail ────────────────────────────────────────────────────────────── */
+    .rail-item {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .3125rem .5rem; border-radius: .375rem; text-align: left;
+      font-size: .8125rem; color: rgb(var(--ink2)); transition: .15s;
+    }
+    .rail-item:hover { background: rgb(var(--wash)); color: rgb(var(--ink)); }
+    .rail-item[aria-current="true"] {
+      background: rgb(var(--brand-wash)); color: rgb(var(--brand)); font-weight: 500;
+    }
+    @media (min-width: 768px) { .rail-item { width: 100%; } }
+    /* below md the rail is a horizontal strip, so items read as chips */
+    @media (max-width: 767px) {
+      .rail-item { border: 1px solid rgb(var(--line)); background: rgb(var(--surface)); }
+      .rail-item[aria-current="true"] { border-color: transparent; }
+    }
+
+    /* ── The index row ────────────────────────────────────────────────────── */
+    .row {
+      --row-px: .875rem;
+      --notch: calc(var(--row-px) + 1.75rem + .75rem + 2.25rem);
+      position: relative; display: grid; align-items: center; gap: .75rem;
+      grid-template-columns: 1.75rem 2.25rem minmax(0, 1fr) auto 4.75rem 4.25rem;
+      padding: .5rem var(--row-px); border-radius: .5rem; transition: background .15s;
+    }
+    .row:hover { background: rgb(var(--wash)); }
+    .row:focus-within {
+      box-shadow: 0 0 0 2px rgb(var(--surface)), 0 0 0 4px rgb(var(--brand));
+    }
+    /* divider notched around the favicon, like a table of contents */
+    .row::after {
+      content: ""; position: absolute; left: var(--notch); right: var(--row-px);
+      bottom: 0; height: 1px; background: rgb(var(--line-soft));
+    }
+    .row:last-child::after { display: none; }
+    /* hover accent bar */
+    .row::before {
+      content: ""; position: absolute; left: 0; top: .4375rem; bottom: .4375rem;
+      width: 2px; border-radius: 0 2px 2px 0;
+      background: rgb(var(--brand)); opacity: 0; transition: opacity .15s;
+    }
+    .row:hover::before { opacity: 1; }
+    .row.is-armed { background: rgb(var(--danger-wash)); }
+
+    /* the URL line's link covers the whole row, so the row is one big hit target */
+    .stretched::after {
+      content: ""; position: absolute; inset: 0; border-radius: .5rem;
+    }
+
+    .icon-tile {
+      display: flex; align-items: center; justify-content: center;
+      width: 1.5rem; height: 1.5rem; border-radius: .375rem; flex: none;
+      background: rgb(var(--bg)); box-shadow: inset 0 0 0 1px rgb(var(--line));
+      color: rgb(var(--ink3));
+    }
+    .icon-tile img { width: 1rem; height: 1rem; object-fit: contain; }
+
+    @media (max-width: 1279px) {
+      .row { grid-template-columns: 1.75rem 2.25rem minmax(0, 1fr) 4.75rem 4.25rem; }
+      /* two classes, so this outranks the Tailwind `flex` utility on the element */
+      .row .col-tags { display: none; }
+    }
+    @media (max-width: 767px) {
+      .row { grid-template-columns: 2.25rem minmax(0, 1fr) 4.25rem; }
+      .col-id, .col-date { display: none; }
+      .row::after { left: calc(var(--row-px) + 2.25rem + .75rem); }
+    }
+
+    /* ── Motion ──────────────────────────────────────────────────────────── */
+    @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise .18s ease both; }
+    @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: .7; } }
+    .skeleton {
+      background: rgb(var(--line-soft)); border-radius: .25rem;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important; scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 
-<body class="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200">
+<body class="min-h-screen bg-bg text-ink font-sans antialiased">
 
 <!-- ── Top bar ──────────────────────────────────────────────────────────────── -->
-<header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm">
-  <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
-    <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">📌 Bookmarks</span>
-    <div class="flex items-center gap-2">
+<header class="sticky top-0 z-30 bg-surface/85 backdrop-blur-md border-b border-line">
+  <div class="max-w-shell mx-auto px-4 sm:px-6 h-14 flex items-center gap-3 sm:gap-4">
 
-      <!-- Bookmarklet drag handle -->
-      <a id="bookmarkletBtn"
-        href="#"
-        draggable="true"
-        title="Drag to bookmarks bar — or click to test on this page"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-600
-               bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400
-               hover:bg-indigo-100 dark:hover:bg-indigo-800/50 transition select-none cursor-grab active:cursor-grabbing
-               text-sm font-medium">
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+    <a href="/" class="flex items-baseline gap-2 shrink-0" title="Marks">
+      <span class="font-display text-2xl leading-none text-ink">Marks</span>
+      <span class="hidden sm:inline font-mono text-2xs uppercase tracking-[.18em] text-ink3">bookmarks</span>
+    </a>
+
+    <!-- Search -->
+    <div class="relative flex-1 max-w-md">
+      <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink3 pointer-events-none"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="8" stroke-width="2" />
+        <path stroke-width="2" d="M21 21l-4.35-4.35" />
+      </svg>
+      <input id="searchInput" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search titles, URLs, tags…"
+             aria-label="Search bookmarks"
+             class="field pl-8 pr-14" />
+      <button id="searchClear" type="button" aria-label="Clear search"
+              class="hidden absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ink3 hover:text-ink transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <span class="hidden md:block absolute right-2.5 top-1/2 -translate-y-1/2 keycap">⌘K</span>
+    </div>
+
+    <div class="ml-auto flex items-center gap-2 shrink-0">
+      <!-- Bookmarklet: drag to the bookmarks bar -->
+      <a id="bookmarkletBtn" href="#" draggable="true"
+         title="Drag to your bookmarks bar — or click to test on this page"
+         class="hidden sm:inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-dashed border-line
+                text-ink2 hover:text-brand hover:border-brand/50 hover:bg-brand-wash
+                text-xs font-medium transition select-none cursor-grab active:cursor-grabbing">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
         </svg>
-        <span class="hidden sm:inline whitespace-nowrap">Drag to Bookmarks Bar</span>
+        <span class="whitespace-nowrap">Drag to bar</span>
       </a>
 
-      <!-- Theme toggle -->
-      <button id="themeBtn" onclick="toggleTheme()"
-        class="p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-        title="Toggle theme">
+      <button id="themeBtn" type="button" aria-label="Toggle theme"
+              class="iconbtn border border-line h-9 w-9">
         <span id="iconSun" class="hidden">
-          <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="5" stroke-width="2"/>
-            <path stroke-width="2" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke-width="2" />
+            <path stroke-width="2" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
           </svg>
         </span>
         <span id="iconMoon">
-          <svg class="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
           </svg>
         </span>
       </button>
@@ -82,422 +284,636 @@
   </div>
 </header>
 
-<!-- ── Main layout ──────────────────────────────────────────────────────────── -->
-<div class="max-w-screen-xl mx-auto px-4 py-5 flex gap-5">
+<!-- ── Shell ────────────────────────────────────────────────────────────────── -->
+<div class="max-w-shell mx-auto px-4 sm:px-6 py-5 sm:py-6 flex flex-col md:flex-row gap-5 md:gap-8 items-start">
 
-  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
-  <aside class="w-48 shrink-0">
-    <div class="sticky top-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-
-      <!-- Search -->
-      <div class="p-3 border-b border-slate-200 dark:border-slate-700">
-        <div class="relative">
-          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none"
-               fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" stroke-width="2"/>
-            <path stroke-width="2" d="M21 21l-4.35-4.35"/>
-          </svg>
-          <input id="searchInput" type="text" placeholder="Search bookmarks…"
-            class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600
-                   bg-slate-50 dark:bg-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400
-                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
-        </div>
-      </div>
-
-      <!-- Tags -->
-      <div class="p-3">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Tags</h2>
-        <div id="tagList" class="flex flex-col gap-1.5">
-          <span class="tag-pill active" data-tag="" onclick="filterByTag(this,'')">🏷 All</span>
-        </div>
-      </div>
-    </div>
+  <!-- ── Rail ──────────────────────────────────────────────────────────────── -->
+  <aside class="w-full md:w-48 shrink-0 md:sticky md:top-20">
+    <h2 class="font-mono text-2xs uppercase tracking-[.18em] text-ink3 px-2 mb-2">Tags</h2>
+    <nav id="tagList" class="flex md:flex-col gap-1 md:gap-0.5 overflow-x-auto md:overflow-visible pb-1 md:pb-0 -mx-2 px-2"></nav>
   </aside>
 
-  <!-- ── Right main area ─────────────────────────────────────────────────── -->
-  <main class="flex-1 min-w-0 flex flex-col gap-4">
+  <!-- ── Main ──────────────────────────────────────────────────────────────── -->
+  <main class="flex-1 min-w-0 flex flex-col gap-5">
 
-    <!-- Add form card (top of list) -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
-      <h2 class="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-3">➕ Add Bookmark</h2>
-      <div class="flex flex-col gap-2">
-        <!-- Row 1: URL -->
-        <div class="flex items-center gap-2">
-          <label class="text-xs text-slate-500 dark:text-slate-400 w-8 shrink-0">URL</label>
-          <input id="urlInput" type="url" placeholder="Paste URL — title & favicon fetched automatically on blur"
-            class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600
-                   bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
-                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
-          <span id="fetchIndicator" class="text-xs text-indigo-400 hidden whitespace-nowrap">⏳ Fetching…</span>
+    <!-- Capture -->
+    <section class="bg-surface border border-line rounded-xl p-3 sm:p-4">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <div class="relative flex-1">
+          <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink3 pointer-events-none"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-width="2" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+          </svg>
+          <input id="urlInput" type="url" autocomplete="off" spellcheck="false"
+                 placeholder="Paste a URL to save it"
+                 aria-label="URL to save"
+                 class="field pl-8" />
         </div>
-        <!-- Row 2: Title + Tags + Submit -->
-        <div class="flex items-center gap-2">
-          <label class="text-xs text-slate-500 dark:text-slate-400 w-8 shrink-0">Title</label>
-          <input id="titleInput" type="text" placeholder="Title (auto-filled)"
-            class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600
-                   bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
-                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
-          <label class="text-xs text-slate-500 dark:text-slate-400 shrink-0">Tags</label>
-          <input id="tagsInput" type="text" placeholder="tag1, tag2, … (Enter to add)"
-            class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600
-                   bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400
-                   placeholder:text-slate-400 dark:placeholder:text-slate-500"/>
-          <button onclick="addBookmark()"
-            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition shrink-0">
-            ＋ Add
-          </button>
-        </div>
+        <input id="tagsInput" type="text" autocomplete="off" placeholder="tags, comma separated"
+               aria-label="Tags" class="field sm:w-52" />
+        <button id="addBtn" type="button" class="btn btn-primary shrink-0">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-width="2.5" d="M12 5v14M5 12h14"/></svg>
+          Add
+        </button>
       </div>
-      <div id="addError" class="hidden mt-2 text-xs text-red-500 dark:text-red-400"></div>
-    </div>
 
-    <!-- Bookmark list -->
-    <div id="bookmarkList" class="flex flex-col gap-3"></div>
-    <div id="emptyState" class="hidden text-center py-20 text-slate-400 dark:text-slate-600">
-      <div class="text-5xl mb-3">🔖</div>
-      <p class="text-sm">No bookmarks found</p>
-    </div>
+      <!-- Live preview of the card about to be saved -->
+      <div id="preview" class="hidden items-center gap-2.5 mt-3 pt-3 border-t border-line-soft">
+        <span class="icon-tile" id="previewIcon"></span>
+        <input id="titleInput" type="text" placeholder="Title (fetched automatically)"
+               aria-label="Title" class="field field-bare flex-1 font-medium !px-2" />
+        <span id="fetchState" class="font-mono text-2xs text-ink3 shrink-0"></span>
+      </div>
 
-    <!-- Pagination controls -->
-    <div id="pagination" class="hidden mt-4 pb-8"></div>
+      <p id="addError" class="hidden mt-2.5 text-xs text-danger flex items-center gap-1.5" role="alert"></p>
+    </section>
 
+    <!-- Index -->
+    <section>
+      <div class="flex items-center gap-3 px-1 pb-2">
+        <h2 class="font-mono text-2xs uppercase tracking-[.18em] text-ink3">Index</h2>
+        <span id="resultCount" class="font-mono text-2xs text-ink3"></span>
+        <button id="clearFilters" type="button"
+                class="hidden ml-auto items-center gap-1.5 font-mono text-2xs text-brand hover:underline">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          Clear filters
+        </button>
+      </div>
+
+      <div class="bg-surface border border-line rounded-xl overflow-hidden">
+        <div id="bookmarkList" class="p-1.5"></div>
+        <div id="emptyState" class="hidden px-6 py-16 text-center"></div>
+      </div>
+
+      <nav id="pagination" class="hidden items-center justify-center gap-1.5 py-6 font-mono text-xs" aria-label="Pagination"></nav>
+    </section>
   </main>
 </div>
 
-<!-- ── Edit Modal ───────────────────────────────────────────────────────────── -->
-<div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 border border-slate-200 dark:border-slate-700">
-    <h3 class="font-bold text-lg mb-4">✏️ Edit Bookmark</h3>
-    <input type="hidden" id="editId"/>
-    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Title</label>
-    <input id="editTitle" type="text" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
-    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Icon URL</label>
-    <input id="editIcon" type="text" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
-    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Tags (comma-separated)</label>
-    <input id="editTags" type="text" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+<!-- ── Edit dialog ──────────────────────────────────────────────────────────── -->
+<div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+  <div role="dialog" aria-modal="true" aria-labelledby="editHeading"
+       class="bg-surface rounded-2xl shadow-2xl w-full max-w-md border border-line p-6">
+    <h3 id="editHeading" class="font-display text-2xl mb-4">Edit bookmark</h3>
+    <input type="hidden" id="editId" />
+    <label class="block font-mono text-2xs uppercase tracking-[.14em] text-ink3 mb-1.5" for="editTitle">Title</label>
+    <input id="editTitle" type="text" class="field mb-3" />
+    <label class="block font-mono text-2xs uppercase tracking-[.14em] text-ink3 mb-1.5" for="editIcon">Icon URL</label>
+    <input id="editIcon" type="url" class="field mb-3" />
+    <label class="block font-mono text-2xs uppercase tracking-[.14em] text-ink3 mb-1.5" for="editTags">Tags (comma separated)</label>
+    <input id="editTags" type="text" class="field mb-6" />
     <div class="flex justify-end gap-2">
-      <button onclick="closeModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition">Cancel</button>
-      <button onclick="saveEdit()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition">Save</button>
+      <button id="editCancel" type="button" class="btn btn-ghost">Cancel</button>
+      <button id="editSave" type="button" class="btn btn-primary">Save changes</button>
     </div>
   </div>
 </div>
 
-<script>
-let activeTag = '';
-let searchQuery = '';
-let currentPage = 1;
-const itemsPerPage = 8;
-let totalPages = 1;
-let fetchedMeta = {};
-let searchTimer = null;
+<!-- ── Toast ────────────────────────────────────────────────────────────────── -->
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden">
+  <div class="flex items-center gap-2 bg-ink text-bg text-xs font-medium px-3.5 py-2 rounded-lg shadow-lg"></div>
+</div>
 
-// ── Theme ──────────────────────────────────────────────────────────────────────
+<script>
+const $  = id => document.getElementById(id);
+const el = {
+  search: $('searchInput'), searchClear: $('searchClear'),
+  tagList: $('tagList'), list: $('bookmarkList'), empty: $('emptyState'),
+  count: $('resultCount'), clearFilters: $('clearFilters'), pager: $('pagination'),
+  url: $('urlInput'), title: $('titleInput'), tags: $('tagsInput'),
+  addBtn: $('addBtn'), preview: $('preview'), previewIcon: $('previewIcon'),
+  fetchState: $('fetchState'), addError: $('addError'),
+  modal: $('editModal'), editId: $('editId'), editTitle: $('editTitle'),
+  editIcon: $('editIcon'), editTags: $('editTags'), toast: $('toast')
+};
+
+const state = {
+  tag: '', q: '', page: 1, perPage: 20,
+  total: 0, totalPages: 1, items: new Map(), armed: null
+};
+let meta = null, lastFetched = '', searchTimer = null, metaTimer = null, toastTimer = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const ICON_LINK =
+  '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path stroke-width="2" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>';
+
+const ICON_EDIT =
+  '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>';
+
+const ICON_TRASH =
+  '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+
+const ICON_X =
+  '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>';
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
 function updateThemeIcons() {
   const dark = document.documentElement.classList.contains('dark');
-  document.getElementById('iconSun').classList.toggle('hidden', !dark);
-  document.getElementById('iconMoon').classList.toggle('hidden', dark);
+  $('iconSun').classList.toggle('hidden', !dark);
+  $('iconMoon').classList.toggle('hidden', dark);
 }
-function toggleTheme() {
+$('themeBtn').addEventListener('click', () => {
   const isDark = document.documentElement.classList.toggle('dark');
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
   updateThemeIcons();
-}
+});
 updateThemeIcons();
 
-// ── Search (debounce 300 ms) ────────────────────────────────────────────────────
-document.getElementById('searchInput').addEventListener('input', function() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    searchQuery = this.value.trim();
-    currentPage = 1;
-    loadBookmarks();
-  }, 300);
-});
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(message, tone) {
+  const box = el.toast.firstElementChild;
+  box.textContent = message;
+  box.classList.toggle('bg-danger', tone === 'danger');
+  box.classList.toggle('text-white', tone === 'danger');
+  box.classList.toggle('bg-ink', tone !== 'danger');
+  box.classList.toggle('text-bg', tone !== 'danger');
+  el.toast.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.toast.classList.add('hidden'), 2600);
+}
 
-// ── Fetch meta on URL blur ─────────────────────────────────────────────────────
-document.getElementById('urlInput').addEventListener('blur', async function() {
-  const url = this.value.trim();
-  if (!url) return;
-  document.getElementById('fetchIndicator').classList.remove('hidden');
+// ── Capture: live metadata preview ────────────────────────────────────────────
+function showPreview(url) {
+  const on = !!url;
+  el.preview.classList.toggle('hidden', !on);
+  el.preview.classList.toggle('flex', on);
+}
+
+function setFetchState(text, tone) {
+  el.fetchState.textContent = text;
+  el.fetchState.className = 'font-mono text-2xs shrink-0 ' +
+    (tone === 'error' ? 'text-danger' : tone === 'busy' ? 'text-brand' : 'text-ink3');
+}
+
+function renderPreviewIcon(src) {
+  el.previewIcon.innerHTML = src
+    ? `<img src="/api/proxy-icon?url=${encodeURIComponent(src)}" alt="" onerror="this.remove()">`
+    : ICON_LINK;
+}
+
+async function fetchMeta(url) {
+  if (!url || !/^https?:\/\//i.test(url)) return;
+  if (url === lastFetched) return;
+  lastFetched = url;
+  setFetchState('Fetching…', 'busy');
+  renderPreviewIcon('');
   try {
     const res = await fetch('/api/fetch-meta?url=' + encodeURIComponent(url));
     const data = await res.json();
-    fetchedMeta = data;
-    if (data.title && !document.getElementById('titleInput').value) {
-      document.getElementById('titleInput').value = data.title;
-    }
-  } catch(e) {}
-  document.getElementById('fetchIndicator').classList.add('hidden');
-});
-
-['urlInput','titleInput','tagsInput'].forEach(id => {
-  document.getElementById(id).addEventListener('keydown', e => {
-    if (e.key === 'Enter') addBookmark();
-  });
-});
-
-// ── Add bookmark ───────────────────────────────────────────────────────────────
-async function addBookmark() {
-  const url   = document.getElementById('urlInput').value.trim();
-  const title = document.getElementById('titleInput').value.trim();
-  const tags  = document.getElementById('tagsInput').value.split(',').map(t=>t.trim()).filter(Boolean);
-  const errEl = document.getElementById('addError');
-  errEl.classList.add('hidden');
-  if (!url) { showAddError('Please enter a URL'); return; }
-  const icon = fetchedMeta.icon || '';
-  const res = await fetch('/api/bookmarks', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ url, title: title || url, icon, tags })
-  });
-  if (res.ok) {
-    document.getElementById('urlInput').value = '';
-    document.getElementById('titleInput').value = '';
-    document.getElementById('tagsInput').value = '';
-    fetchedMeta = {};
-    currentPage = 1;
-    await loadAll();
-  } else {
-    const data = await res.json();
-    showAddError(data.message || 'Failed to add bookmark');
+    meta = data;
+    renderPreviewIcon(data.icon);
+    if (data.title && !el.title.value) el.title.value = data.title;
+    if (data.error) { setFetchState('Could not read page', 'error'); return; }
+    setFetchState('Ready to save');
+  } catch (e) {
+    setFetchState('Could not reach page', 'error');
   }
 }
+
+function scheduleMeta() {
+  clearTimeout(metaTimer);
+  const url = el.url.value.trim();
+  showPreview(url);
+  el.addError.classList.add('hidden');
+  if (!url) { lastFetched = ''; meta = null; renderPreviewIcon(''); setFetchState(''); return; }
+  if (url === lastFetched && meta) { setFetchState('Ready to save'); return; }
+  metaTimer = setTimeout(() => fetchMeta(url), 700);
+}
+
+el.url.addEventListener('input', scheduleMeta);
+el.url.addEventListener('blur', () => fetchMeta(el.url.value.trim()));
+el.url.addEventListener('paste', () => setTimeout(() => { scheduleMeta(); fetchMeta(el.url.value.trim()); }, 0));
 
 function showAddError(msg) {
-  const el = document.getElementById('addError');
-  el.textContent = '⚠️ ' + msg;
-  el.classList.remove('hidden');
+  el.addError.innerHTML =
+    `<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>` +
+    `<span>${esc(msg)}</span>`;
+  el.addError.classList.remove('hidden');
+  el.addError.classList.add('flex');
 }
 
-// ── Load & render ──────────────────────────────────────────────────────────────
-async function loadAll() {
-  await Promise.all([loadBookmarks(), loadTags()]);
+function clearAddError() {
+  el.addError.classList.add('hidden');
+  el.addError.classList.remove('flex');
 }
 
-// 后端分页：每次请求当前页数据
-async function loadBookmarks() {
-  const params = new URLSearchParams();
-  if (activeTag)   params.set('tag', activeTag);
-  if (searchQuery) params.set('q', searchQuery);
-  params.set('page', currentPage);
-  params.set('per_page', itemsPerPage);
+async function addBookmark() {
+  const url = el.url.value.trim();
+  if (!url) { showAddError('Enter a URL first.'); el.url.focus(); return; }
+  if (!/^https?:\/\//i.test(url)) { showAddError('That does not look like a URL — it should start with http.'); return; }
 
-  const res  = await fetch('/api/bookmarks?' + params.toString());
-  const data = await res.json();
-
-  totalPages = data.total_pages || 1;
-  renderBookmarks(data.items);
-  renderPagination(data.total);
-}
-
-async function loadTags() {
-  const res = await fetch('/api/tags');
-  const tags = await res.json();
-  const list = document.getElementById('tagList');
-  list.innerHTML = '<span class="tag-pill' + (activeTag===''?' active':'') + '" data-tag="" onclick="filterByTag(this,\'\')">🏷 All</span>';
-  tags.forEach(t => {
-    const el = document.createElement('span');
-    el.className = 'tag-pill' + (activeTag===t?' active':'');
-    el.dataset.tag = t;
-    el.onclick = function() { filterByTag(this, t); };
-    el.textContent = t;
-    list.appendChild(el);
-  });
-}
-
-function renderBookmarks(items) {
-  const list  = document.getElementById('bookmarkList');
-  const empty = document.getElementById('emptyState');
-  list.innerHTML = '';
-  if (!items || !items.length) { empty.classList.remove('hidden'); return; }
-  empty.classList.add('hidden');
-  items.forEach(b => {
-    const tags = b.tags ? b.tags.split(',').filter(Boolean) : [];
-    const tagHtml = tags.map(t =>
-      `<span class="tag-pill text-xs py-0.5 px-2" onclick="filterByTag(null,'${escHtml(t)}')">${escHtml(t)}</span>`
-    ).join('');
-    const iconSrc = b.icon ? `/api/proxy-icon?url=${encodeURIComponent(b.icon)}` : '';
-    const iconHtml = iconSrc
-      ? `<img src="${iconSrc}" class="w-5 h-5 rounded shrink-0 object-contain" onerror="this.replaceWith(defaultIcon())" />`
-      : defaultIcon().outerHTML;
-
-    const card = document.createElement('div');
-    card.className = 'fade-in bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow';
-    card.innerHTML = `
-      ${iconHtml}
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <a href="${escHtml(b.url)}" target="_blank" rel="noopener"
-             class="font-medium text-slate-800 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 truncate text-sm">
-            ${escHtml(b.title)}
-          </a>
-        </div>
-        <div class="flex items-center gap-2 mt-0.5">
-          <a href="${escHtml(b.url)}" target="_blank" rel="noopener"
-             class="text-xs text-slate-400 dark:text-slate-500 truncate max-w-sm hover:underline" title="${escHtml(b.url)}">
-            ${escHtml(b.url)}
-          </a>
-          <span class="text-slate-300 dark:text-slate-600 text-xs shrink-0">·</span>
-          <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">${b.created_at.slice(0,10)}</span>
-        </div>
-        <div class="flex flex-wrap gap-1 mt-1">${tagHtml}</div>
-      </div>
-      <div class="flex gap-1.5 shrink-0">
-        <button onclick='openEdit(${JSON.stringify(b)})'
-          class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition" title="Edit">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-        </button>
-        <button onclick="deleteBookmark(${b.id})"
-          class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Delete">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-        </button>
-      </div>`;
-    list.appendChild(card);
-  });
-}
-
-function defaultIcon() {
-  const s = document.createElement('span');
-  s.className = 'w-5 h-5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-500 dark:text-indigo-300 flex items-center justify-center text-xs shrink-0';
-  s.textContent = '🔗';
-  return s;
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Tag filter ─────────────────────────────────────────────────────────────────
-function filterByTag(el, tag) {
-  activeTag = tag;
-  currentPage = 1;
-  document.querySelectorAll('.tag-pill').forEach(p => p.classList.remove('active'));
-  if (el) {
-    el.classList.add('active');
-  } else {
-    document.querySelectorAll('#tagList .tag-pill').forEach(p => {
-      if (p.dataset.tag === tag) p.classList.add('active');
-    });
-  }
-  loadBookmarks();
-}
-
-// ── Delete ─────────────────────────────────────────────────────────────────────
-async function deleteBookmark(id) {
-  if (!confirm('Delete this bookmark?')) return;
-  await fetch('/api/bookmarks/' + id, { method: 'DELETE' });
-  // 删除后若当前页已无数据则退一页
-  if (currentPage > 1) currentPage--;
-  await loadAll();
-}
-
-// ── Edit modal ─────────────────────────────────────────────────────────────────
-function openEdit(b) {
-  document.getElementById('editId').value    = b.id;
-  document.getElementById('editTitle').value = b.title || '';
-  document.getElementById('editIcon').value  = b.icon  || '';
-  document.getElementById('editTags').value  = b.tags  || '';
-  document.getElementById('editModal').classList.remove('hidden');
-  document.getElementById('editModal').classList.add('flex');
-}
-function closeModal() {
-  document.getElementById('editModal').classList.add('hidden');
-  document.getElementById('editModal').classList.remove('flex');
-}
-document.getElementById('editModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-async function saveEdit() {
-  const id    = document.getElementById('editId').value;
-  const title = document.getElementById('editTitle').value.trim();
-  const icon  = document.getElementById('editIcon').value.trim();
-  const tags  = document.getElementById('editTags').value.split(',').map(t=>t.trim()).filter(Boolean);
-  await fetch('/api/bookmarks/' + id, {
-    method: 'PUT',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ title, icon, tags })
-  });
-  closeModal();
-  await loadAll();
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────────
-(function() {
-  const base = location.origin;
-  const code = `javascript:(function(){var t=encodeURIComponent(document.title),u=encodeURIComponent(location.href);window.open('${base}/?url='+u+'\x26title='+t,'_blank');})();`;
-  document.getElementById('bookmarkletBtn').setAttribute('href', code);
-})();
-
-(function() {
-  const params = new URLSearchParams(location.search);
-  const pUrl   = params.get('url');
-  const pTitle = params.get('title');
-  if (pUrl) {
-    document.getElementById('urlInput').value = pUrl;
-    document.getElementById('urlInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-  if (pTitle) {
-    document.getElementById('titleInput').value = pTitle;
-  }
-  if (pUrl) {
-    fetch('/api/fetch-meta?url=' + encodeURIComponent(pUrl))
-      .then(r => r.json())
-      .then(data => {
-        fetchedMeta = data;
-        if (data.title && !document.getElementById('titleInput').value) {
-          document.getElementById('titleInput').value = data.title;
-        }
-        document.getElementById('tagsInput').focus();
+  // Give a quick metadata fetch a moment to land, but never let a slow or
+  // unreachable page hold up the save — fall back to the URL as the title.
+  await Promise.race([fetchMeta(url), new Promise(r => setTimeout(r, 1500))]);
+  el.addBtn.disabled = true;
+  try {
+    const res = await fetch('/api/bookmarks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url,
+        title: el.title.value.trim() || (meta && meta.title) || url,
+        icon: (meta && meta.icon) || '',
+        tags: el.tags.value.split(',').map(t => t.trim()).filter(Boolean)
       })
-      .catch(() => {});
-    history.replaceState(null, '', location.pathname);
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showAddError(data.error === 'duplicate'
+        ? 'That URL is already in your index — edit the existing entry instead.'
+        : data.message || 'Could not save this bookmark.');
+      return;
+    }
+    el.url.value = ''; el.title.value = ''; el.tags.value = '';
+    meta = null; lastFetched = '';
+    showPreview(''); renderPreviewIcon(''); setFetchState('');
+    clearAddError();
+    state.page = 1;
+    await load();
+    toast('Saved');
+  } finally {
+    el.addBtn.disabled = false;
   }
-})();
+}
 
-loadAll();
+el.addBtn.addEventListener('click', addBookmark);
+['urlInput', 'titleInput', 'tagsInput'].forEach(id => {
+  $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addBookmark(); } });
+});
 
-// ── Pagination ────────────────────────────────────────────────────────────────
-function renderPagination(total) {
-  const paginationContainer = document.getElementById('pagination');
-  if (!paginationContainer) return;
+// ── Search ────────────────────────────────────────────────────────────────────
+function onSearch() {
+  el.searchClear.classList.toggle('hidden', !el.search.value);
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    state.q = el.search.value.trim();
+    state.page = 1;
+    load();
+  }, 250);
+}
+el.search.addEventListener('input', onSearch);
+el.searchClear.addEventListener('click', () => {
+  el.search.value = ''; onSearch(); el.search.focus();
+});
 
-  if (totalPages <= 1) {
-    paginationContainer.classList.add('hidden');
-    paginationContainer.innerHTML = '';
+// ── Data ──────────────────────────────────────────────────────────────────────
+async function load() {
+  const params = new URLSearchParams();
+  if (state.tag) params.set('tag', state.tag);
+  if (state.q)   params.set('q', state.q);
+  params.set('page', state.page);
+  params.set('per_page', state.perPage);
+
+  const [data, tags] = await Promise.all([
+    fetch('/api/bookmarks?' + params.toString()).then(r => r.json()),
+    fetch('/api/tags').then(r => r.json()).catch(() => [])
+  ]);
+
+  state.total = data.total || 0;
+  state.totalPages = data.total_pages || 1;
+  state.items = new Map((data.items || []).map(b => [b.id, b]));
+
+  renderTags(tags || []);
+  renderRows();
+  renderHeader();
+  renderPager();
+}
+
+function renderHeader() {
+  const bits = [];
+  if (state.tag) bits.push(esc(state.tag));
+  if (state.q)   bits.push('“' + esc(state.q) + '”');
+  el.count.innerHTML = bits.length
+    ? bits.map(b => `<span class="pill">${b}</span>`).join('')
+    : `${state.total} ${state.total === 1 ? 'entry' : 'entries'}`;
+
+  const filtered = !!(state.tag || state.q);
+  el.clearFilters.classList.toggle('hidden', !filtered);
+  el.clearFilters.classList.toggle('flex', filtered);
+}
+
+el.clearFilters.addEventListener('click', () => {
+  state.tag = ''; state.q = ''; state.page = 1;
+  el.search.value = '';
+  el.searchClear.classList.add('hidden');
+  load();
+});
+
+function renderTags(tags) {
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'rail-item shrink-0';
+  all.setAttribute('aria-current', state.tag === '' ? 'true' : 'false');
+  all.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>
+                   <span class="truncate">All</span>` +
+    // `total` follows the active filter, so only count it when nothing is filtered
+    (state.tag || state.q ? '' :
+      `<span class="ml-auto font-mono text-2xs text-ink2">${state.total}</span>`);
+  all.addEventListener('click', () => setTag(''));
+  el.tagList.replaceChildren(all);
+
+  tags.forEach(t => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rail-item shrink-0';
+    b.setAttribute('aria-current', state.tag === t ? 'true' : 'false');
+    b.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>
+                   <span class="truncate">${esc(t)}</span>`;
+    b.addEventListener('click', () => setTag(t));
+    el.tagList.appendChild(b);
+  });
+}
+
+function setTag(tag) {
+  state.tag = (state.tag === tag) ? '' : tag;
+  state.page = 1;
+  load();
+}
+
+function groupLabel(created) {
+  const d = new Date(String(created).replace(' ', 'T'));
+  if (isNaN(d)) return '';
+  const today = new Date();
+  const days = Math.round(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()) -
+     new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-US',
+    d.getFullYear() === today.getFullYear()
+      ? { month: 'short', day: 'numeric' }
+      : { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function iconTile(icon) {
+  return icon
+    ? `<span class="icon-tile"><img src="/api/proxy-icon?url=${encodeURIComponent(icon)}" alt="" loading="lazy" onerror="this.remove()"></span>`
+    : `<span class="icon-tile">${ICON_LINK}</span>`;
+}
+
+function actionsHTML(id, armed) {
+  return armed
+    ? `<button type="button" data-act="cancel" class="iconbtn" title="Cancel" aria-label="Cancel delete">${ICON_X}</button>
+       <button type="button" data-act="confirm" class="iconbtn act-confirm" title="Click to confirm" aria-label="Confirm delete">${ICON_TRASH}</button>`
+    : `<button type="button" data-act="edit" class="iconbtn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
+       <button type="button" data-act="delete" class="iconbtn act-danger" title="Delete" aria-label="Delete">${ICON_TRASH}</button>`;
+}
+
+function rowHTML(b) {
+  const tags = String(b.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  const tagHtml = tags.map(t =>
+    `<button type="button" data-act="tag" data-tag="${esc(t)}" class="pill">${esc(t)}</button>`).join('');
+
+  return `
+  <div class="row rise${state.armed === b.id ? ' is-armed' : ''}" data-id="${b.id}" title="${esc(b.url)}">
+    <span class="col-id font-mono text-2xs text-ink3 tabular-nums pl-0.5">#${b.id}</span>
+    ${iconTile(b.icon)}
+
+    <div class="min-w-0">
+      <div class="truncate text-sm font-medium leading-snug">${esc(b.title || b.url)}</div>
+      <a href="${esc(b.url)}" target="_blank" rel="noopener noreferrer" class="stretched"
+         ><span class="block truncate font-mono text-2xs text-ink3 leading-snug mt-0.5">${esc(b.url)}</span></a>
+    </div>
+
+    <div class="col-tags relative z-10 flex items-center gap-1 flex-wrap justify-end">${tagHtml}</div>
+
+    <span class="col-date font-mono text-2xs text-ink3 tabular-nums justify-self-end">${esc(String(b.created_at || '').slice(0, 10))}</span>
+
+    <div class="relative z-10 flex items-center gap-0.5 justify-self-end" data-actions="${b.id}">
+      ${actionsHTML(b.id, state.armed === b.id)}
+    </div>
+  </div>`;
+}
+
+function renderRows() {
+  const items = [...state.items.values()];
+  const filtered = !!(state.tag || state.q);
+
+  if (!items.length) {
+    el.list.replaceChildren();
+    el.list.classList.add('hidden');
+    el.empty.classList.remove('hidden');
+    el.empty.innerHTML = filtered
+      ? `<div class="mx-auto max-w-xs">
+           <div class="w-9 h-9 mx-auto mb-3 rounded-lg bg-wash border border-line flex items-center justify-center text-ink3">
+             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2"/><path stroke-width="2" d="M21 21l-4.35-4.35"/></svg>
+           </div>
+           <p class="text-sm font-medium mb-1">No matches</p>
+           <p class="text-xs text-ink3 mb-3">Nothing here for the current filter. Try another term, or clear it to see everything.</p>
+           <button type="button" data-act="clear" class="btn btn-ghost">Clear filters</button>
+         </div>`
+      : `<div class="mx-auto max-w-xs">
+           <div class="w-9 h-9 mx-auto mb-3 rounded-lg bg-wash border border-line flex items-center justify-center text-ink3">
+             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+           </div>
+           <p class="text-sm font-medium mb-1">Nothing saved yet</p>
+           <p class="text-xs text-ink3">Paste a URL above to start your index, or drag the bookmarklet onto your bookmarks bar to save from any page.</p>
+         </div>`;
     return;
   }
-  paginationContainer.classList.remove('hidden');
 
-  let html = `<div class="flex items-center gap-2 justify-center mt-6">`;
+  el.list.classList.remove('hidden');
+  el.empty.classList.add('hidden');
 
-  const prevDisabled = currentPage === 1;
-  html += `<button onclick="goToPage(${currentPage - 1})" class="px-3 py-1 text-sm rounded ${prevDisabled ? 'opacity-50 cursor-not-allowed text-slate-400 bg-slate-100 dark:bg-slate-800' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}" ${prevDisabled ? 'disabled' : ''}>上一页</button>`;
-
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-      const isActive = i === currentPage;
-      html += `<button onclick="goToPage(${i})" class="px-3 py-1 text-sm rounded border ${isActive ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}">${i}</button>`;
-    } else if (i === currentPage - 2 || i === currentPage + 2) {
-      html += `<span class="text-slate-400 px-1">...</span>`;
+  const html = [];
+  let lastGroup = null;
+  for (const b of items) {
+    const g = groupLabel(b.created_at);
+    if (g && g !== lastGroup) {
+      lastGroup = g;
+      html.push(`<div class="flex items-center gap-2 px-3.5 pt-4 pb-1.5 first:pt-2">
+        <span class="w-1.5 h-1.5 rounded-[1px] bg-brand/50"></span>
+        <span class="font-mono text-2xs uppercase tracking-[.16em] text-ink3">${esc(g)}</span>
+        <span class="flex-1 h-px bg-line-soft"></span>
+      </div>`);
     }
+    html.push(rowHTML(b));
   }
+  el.list.innerHTML = html.join('');
+}
 
-  const nextDisabled = currentPage === totalPages;
-  html += `<button onclick="goToPage(${currentPage + 1})" class="px-3 py-1 text-sm rounded ${nextDisabled ? 'opacity-50 cursor-not-allowed text-slate-400 bg-slate-100 dark:bg-slate-800' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}" ${nextDisabled ? 'disabled' : ''}>下一页</button>`;
+function renderPager() {
+  const t = state.totalPages;
+  if (t <= 1) { el.pager.classList.add('hidden'); el.pager.replaceChildren(); return; }
+  el.pager.classList.remove('hidden');
+  el.pager.classList.add('flex');
 
-  if (total !== undefined) {
-    html += `<span class="text-xs text-slate-400 ml-2">共 ${total} 条</span>`;
+  const btn = (label, page, opts = {}) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    const base = 'min-w-[2rem] h-8 px-2 rounded-md border transition';
+    b.className = opts.disabled
+      ? base + ' border-line text-ink3 opacity-40 cursor-not-allowed'
+      : opts.current
+        ? base + ' pager-current'
+        : base + ' border-line text-ink2 hover:bg-wash hover:text-ink';
+    if (!opts.disabled) b.addEventListener('click', () => goToPage(page));
+    else b.disabled = true;
+    return b;
+  };
+
+  const parts = [btn('上一页', state.page - 1, { disabled: state.page === 1 })];
+
+  const nums = [];
+  for (let i = 1; i <= t; i++) {
+    if (i === 1 || i === t || Math.abs(i - state.page) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
   }
-  html += `</div>`;
-  paginationContainer.innerHTML = html;
+  nums.forEach(n => {
+    if (n === '…') {
+      const s = document.createElement('span');
+      s.className = 'px-1 text-ink3';
+      s.textContent = '…';
+      parts.push(s);
+    } else {
+      parts.push(btn(String(n), n, { current: n === state.page }));
+    }
+  });
+
+  parts.push(btn('下一页', state.page + 1, { disabled: state.page === t }));
+
+  const total = document.createElement('span');
+  total.className = 'ml-2 text-ink3';
+  total.textContent = `共 ${state.total} 条`;
+  parts.push(total);
+
+  el.pager.replaceChildren(...parts);
 }
 
 function goToPage(page) {
-  if (page < 1 || page > totalPages) return;
-  currentPage = page;
-  loadBookmarks();
+  if (page < 1 || page > state.totalPages || page === state.page) return;
+  state.page = page;
+  state.armed = null;
+  load();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// ── Row actions (delegated) ───────────────────────────────────────────────────
+el.list.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (btn) {
+    e.preventDefault();
+    const id = Number(btn.closest('[data-id]').dataset.id);
+    const act = btn.dataset.act;
+    if (act === 'tag')   { setTag(btn.dataset.tag); return; }
+    if (act === 'edit')  { openEdit(id); return; }
+    if (act === 'cancel'){ state.armed = null; renderRows(); return; }
+    if (act === 'confirm'){ removeBookmark(id); return; }
+  }
+  // First click on delete arms the row instead of firing a browser confirm()
+  const del = e.target.closest('button[title="Delete"]');
+  if (del) {
+    e.preventDefault();
+    arm(Number(del.closest('[data-id]').dataset.id));
+  }
+});
+
+let armTimer = null;
+function arm(id) {
+  state.armed = id;
+  renderRows();
+  clearTimeout(armTimer);
+  armTimer = setTimeout(() => {
+    if (state.armed === id) { state.armed = null; renderRows(); }
+  }, 4000);
+}
+
+el.empty.addEventListener('click', e => {
+  if (e.target.closest('button[data-act="clear"]')) el.clearFilters.click();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!el.modal.classList.contains('hidden')) { closeModal(); return; }
+    if (state.armed !== null) { state.armed = null; renderRows(); return; }
+  }
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) {
+    e.preventDefault();
+    el.search.focus();
+    el.search.select();
+  }
+});
+
+async function removeBookmark(id) {
+  state.armed = null;
+  renderRows();
+  await fetch('/api/bookmarks/' + id, { method: 'DELETE' });
+  if (state.page > 1 && state.items.size <= 1) state.page--;
+  await load();
+  toast('Deleted');
+}
+
+// ── Edit dialog ───────────────────────────────────────────────────────────────
+let lastFocused = null;
+
+function openEdit(id) {
+  const b = state.items.get(id);
+  if (!b) return;
+  lastFocused = document.activeElement;
+  el.editId.value = b.id;
+  el.editTitle.value = b.title || '';
+  el.editIcon.value = b.icon || '';
+  el.editTags.value = b.tags || '';
+  el.modal.classList.remove('hidden');
+  el.modal.classList.add('flex');
+  el.editTitle.focus();
+}
+
+function closeModal() {
+  el.modal.classList.add('hidden');
+  el.modal.classList.remove('flex');
+  if (lastFocused) lastFocused.focus();
+}
+
+el.modal.addEventListener('click', e => { if (e.target === el.modal) closeModal(); });
+$('editCancel').addEventListener('click', closeModal);
+
+$('editSave').addEventListener('click', async () => {
+  const id = el.editId.value;
+  await fetch('/api/bookmarks/' + id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: el.editTitle.value.trim(),
+      icon: el.editIcon.value.trim(),
+      tags: el.editTags.value.split(',').map(t => t.trim()).filter(Boolean)
+    })
+  });
+  closeModal();
+  await load();
+  toast('Changes saved');
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(function initBookmarklet() {
+  const code = `javascript:(function(){var t=encodeURIComponent(document.title),u=encodeURIComponent(location.href);` +
+               `window.open('${location.origin}/?url='+u+'&title='+t,'_blank');})();`;
+  $('bookmarkletBtn').setAttribute('href', code);
+})();
+
+(function initPrefill() {
+  const p = new URLSearchParams(location.search);
+  const pUrl = p.get('url');
+  const pTitle = p.get('title');
+  if (!pUrl) return;
+  el.url.value = pUrl;
+  el.title.value = pTitle || '';
+  showPreview(pUrl);
+  setFetchState('Fetching…', 'busy');
+  history.replaceState(null, '', location.pathname);
+  fetchMeta(pUrl).then(() => el.tags.focus());
+  el.url.scrollIntoView({ behavior: 'smooth', block: 'center' });
+})();
+
+load();
 </script>
 </body>
 </html>
